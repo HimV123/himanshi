@@ -1,0 +1,2229 @@
+/* eslint-disable radix */
+/* eslint-disable no-useless-return */
+/* eslint-disable no-loop-func */
+/* eslint-disable no-mixed-spaces-and-tabs */
+/* eslint-disable dot-notation */
+/* eslint-disable no-alert */
+/* eslint-disable @lwc/lwc/no-async-operation */
+/* eslint-disable consistent-return */
+/* eslint-disable vars-on-top */
+/* eslint-disable guard-for-in */
+/* eslint-disable no-empty */
+/* eslint-disable @lwc/lwc/no-inner-html */
+/* eslint-disable no-unused-expressions */
+/* eslint-disable no-useless-constructor */
+/* eslint-disable @lwc/lwc/valid-api */
+/* eslint-disable @lwc/lwc/no-document-query */
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-undef */
+/* eslint-disable no-console*/
+import { LightningElement,track,wire,api } from 'lwc';
+import { loadScript,loadStyle } from 'lightning/platformResourceLoader';
+import getTabId from '@salesforce/apex/ConversationView_LightningController.getTabId';//added by Himanshi Verma
+import getVoiceDrop from '@salesforce/apex/NewSMSModule_Controller.getVoiceDrop';//added by Himanshi Verma
+import sendVoiceMail from '@salesforce/apex/NewSMSModule_Controller.sendVoiceMail';//added by Himanshi Verma
+import VoiceTemplateList from '@salesforce/apex/ConversationView_LightningController.VoiceTemplateList';//added by Himanshi Verma
+import fetchRecordingData from '@salesforce/apex/ConversationView_LightningController.fetchRecordingData';//added by Himanshi Verma
+import SMSApp_EmojiOne from '@salesforce/resourceUrl/SMSApp_EmojiOne';
+import resourcefile from '@salesforce/resourceUrl/resource_sms_file';
+import searchRecords from '@salesforce/apex/NewSMSModule_Controller.searchRecords';
+import getRecord from  '@salesforce/apex/NewSMSModule_Controller.getRecord';
+import SenderNumberList from '@salesforce/apex/NewSMSModule_Controller.SenderNumberList';
+import sendMessage from '@salesforce/apex/NewSMSModule_Controller.sendMessage';
+import getGeneralSettingRecord from '@salesforce/apex/NewSMSModule_Controller.getGeneralSettingRecord';
+import getFolderList from '@salesforce/apex/NewSMSModule_Controller.getFolderList';
+import isMMSEnabled from '@salesforce/apex/NewSMSModule_Controller.isMMSEnabled';
+import getTemplateList from '@salesforce/apex/NewSMSModule_Controller.getTemplateList';
+import checkMMSAvailability from '@salesforce/apex/NewSMSModule_Controller.checkMMSAvailability';
+import createMedia from '@salesforce/apex/NewSMSModule_Controller.createMedia';
+import getTemplateContents from '@salesforce/apex/NewSMSModule_Controller.getTemplateContents';
+import sendMessages from '@salesforce/apex/NewSMSModule_Controller.sendMessages'; //added by priya
+import fetchNumbers from '@salesforce/apex/NewSMSModule_Controller.fetchNumbers'; //added by priya
+import { emojiTable1, emojiTable2, emojiTable3, emojiTable4} from 'c/emojiTable';
+import isTextEditable from '@salesforce/apex/NewSMSModule_Controller.isTextEditable';
+import labelName from '@salesforce/label/c.SMSAppLabel';
+import complianceSenderNumChng from "@salesforce/apex/NewSMSModule_Controller.complianceSenderNumChng";
+import { checkBoxSelect } from "./helpersmsComposing.js";
+import getChannelList from '@salesforce/apex/NewSMSModule_Controller.messageTypeList';
+
+export default class sms_Composing extends LightningElement {
+    emoiji = SMSApp_EmojiOne+'/1f60e.png';
+    maxDocSize = 4718592;
+    DocArray = [];
+    @track totalFileSize = 0;
+    @track isEmoji = false;
+    @track emojiDisabled = false;
+    @track isFolderCheckboxVisible = false;
+    @track charlimit = '';
+    @track SetCurrentYear = '';
+    @track records=[];
+    @track isFormVisible = false;
+    @track senderNumberArray = [];
+    @track config = [];
+    @track value = '';
+    @track phoneApiVal = '';
+    @track phoneNumber = '';
+    @track phoneApi = [];
+    @track messageText='' ;
+    @track recId='';
+    @track senderNumber='' ;
+    @track folderList=[];
+    @track templateList = [];
+    filenameArr = [];
+    @track parentRef;
+    @track mmsEnabled = false;
+    @track isError = false;
+    @track errorMsg = '';
+    @track recName = '';
+    setLabelName = '';
+    @track supportedFileType = '';
+    @track isFolderChecked = false;
+    @track errorHeader = 'Error';
+    @track content='';
+    @track toNumbersLstSize;
+    fieldsVisible = false;
+    mapSenderNumber = new Map(); 
+    configMap = []; 
+    recordsAvailable = false;
+    @track Spaceprefix = 'tdc_tsw__';
+    isTextComposing = true;
+    isTemplateEditable = true;
+    label = {labelName};
+    @track defaultSelectVal;
+    @track selectedTemplate ='';
+    @track selectedValueOnRecord = "";
+    isFolderTemplateVisiable = false;
+    istemplatePicklistVisible = false;
+    disabledFolder = false;
+    disabledTemplate = false;
+    isEmojiVisible = true;
+    isEmojiDisable = false;
+
+     showSendToMessage = false;
+    // showClearButton=false;//added by Himanshi verma
+    isWhatsAppCheck=false;
+    textareaEnabled=false;
+    providerName;
+    isMMS=false;
+    isCSV=false;
+    MAX_FILE_SIZE = 17000000;
+    MAX_VOICEFILE_SIZE=4500000;
+    isRecord=false;
+    @api Area = false;
+    @api boolTextareaEnabled = false;
+    @api Type = false;
+    lstMapIdToTemplate;
+     reader = false;
+     isVoiceDrop = false; 
+     fileUpload = false; 
+     recordingId;
+     recName;
+     URLdata;  //added by Himanshi Verma
+     VoiceURL; //added by Himanshi Verma
+     blob;//added by Himanshi Verma
+     FolderRecId;//added by Himanshi Verma
+     recordingName;//added by Himanshi Verma
+     whatsAppMediaName;//added by Himanshi Verma
+     voiceIcon = resourcefile + '/img/microphone.png'; //added by Himanshi Verma
+     licenceRequired = true ;//added by Abhinav Punia
+     templateContainer = false;
+     folderContainer_1 = false;
+     folderContainer_2 = false;
+     dropdownData = '';
+     channelVal = '';
+     audioURL = '';
+     channelList = [];
+     channelList2 = [];
+     connectedCallback() {
+        
+        try {
+               
+            this.template.addEventListener('click', event=>{
+                let checkEle = event?.target?.closest('.slds-dropdown-trigger');
+                if (!checkEle) {
+                    if (this.reader) {
+                        this.reader = false;
+                        this.template.querySelectorAll(".slds-dropdown__list a").forEach((ele) => {
+                            ele.classList.remove('active')
+                        });
+                        this.template.querySelector(".SelectedTemplateDropdown").classList.add('slds-hide');
+                    }
+                }
+            })
+            
+            var currentdate = new Date();
+            var currrentYear = currentdate.getFullYear();
+            this.SetCurrentYear = currrentYear;
+            
+        Promise.all([
+            loadScript(this, resourcefile + '/js/jquery-3.5.1.min.js')
+        ])
+        .then(()=>{
+            let parentThis = this;
+            this.parentRef = this;
+            this.emojiTable(parentThis);
+            this.setLabelName = this.label.labelName; 
+            this.getEditableBooleanFun();
+            parentThis.template.addEventListener('click',function(e){                             
+                if(!(($(e.target).parents().addBack().is('.emojiComponent')))){parentThis.template.querySelector(".allEmojiContainer").style.display = "none";
+                }
+            });
+        })
+        
+        } catch(error) {
+            
+        }
+    }
+    getEditableBooleanFun(){
+        try {
+            isTextEditable({ flag: ''})
+                .then(result =>{
+                    this.isTextComposing = result;
+                    if(this.isTextComposing){
+                        this.template.querySelector('.utilityTextArea').disabled = false;
+                        if(!this.emojiDisabled)
+                        {
+
+                            this.emojiDisabled = false;
+                        }
+                            
+                    }else{
+                        this.template.querySelector('.utilityTextArea').disabled = true;
+                        this.emojiDisabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.log('=========error',error);
+                });
+            isTextEditable({ flag: 'Template'})
+            .then(result =>{
+                this.isTemplateEditable = result;
+
+              })
+            .catch(error => {
+                console.log('=========error',error);
+            });  
+        }catch(error) {
+            console.log('>>>>>>>>>',error);
+        } 
+    }
+    reRenderTextarea(val){
+
+        try {
+            let isEditable = (!this.isTextComposing || !this.isTemplateEditable);
+
+            if(val){
+                this.Area = this.Area ? true : isEditable;
+                if(!this.emojiDisabled)
+                {
+
+                    this.emojiDisabled = this.Area ? true : isEditable;
+                    }
+                    
+            }else if(this.isTextComposing){
+                this.Area = this.Area? true : false;
+                if(!this.emojiDisabled)
+                {
+                     this.emojiDisabled = this.Area? true : false;
+                }
+                    
+            }
+            
+        }catch(error) {
+            console.log('>>>>>>>>>',error);
+        } 
+    }
+    @wire(getGeneralSettingRecord)
+    GeneralSettingRecord({ error, data }) {
+        try {
+            if (data) {
+                let SMSSettingVal  = data;
+                if(SMSSettingVal['CharacterLimit'][this.Spaceprefix+'Value__c'])
+                    this.charlimit = SMSSettingVal['CharacterLimit'][this.Spaceprefix+'Value__c'];
+                else
+                    this.charlimit = '1000';
+                if(SMSSettingVal['enableFolder'][this.Spaceprefix+'AutoForwardToMobile__c'])
+                    this.isFolderCheckboxVisible = true;
+                else
+                    this.isFolderCheckboxVisible = false;    
+                if(SMSSettingVal['checkforemoji'][this.Spaceprefix+'AutoForwardToMobile__c']) {
+                    this.isEmoji = true;
+                }     
+                if((SMSSettingVal['templateFolderPicklist'][this.Spaceprefix+'Value__c'] == 'Enable')|| (SMSSettingVal['templateFolderPicklist'][this.Spaceprefix+'Value__c'] == 'Disable')){ 
+                    this.isFolderTemplateVisiable  = true;
+                     if(SMSSettingVal['templateFolderPicklist'][this.Spaceprefix+'Value__c'] == 'Disable')
+                    {
+                        this.disabledFolder = true;
+                    }
+                    else
+                    {
+                        this.disabledFolder = false;
+                    }
+                }   
+                else if(SMSSettingVal['templateFolderPicklist'][this.Spaceprefix+'Value__c'] == 'Hide'){
+                    this.isFolderTemplateVisiable = false;  
+                 }
+    
+                if((SMSSettingVal['templateButtonPicklist'][this.Spaceprefix+'Value__c'] == 'Enable')|| (SMSSettingVal['templateButtonPicklist'][this.Spaceprefix+'Value__c'] == 'Disable')){ 
+                    this.istemplatePicklistVisible  = true;
+                    if(SMSSettingVal['templateButtonPicklist'][this.Spaceprefix+'Value__c'] == 'Disable')
+                    {
+                        this.disabledTemplate = true
+                    }
+                    else
+                    {
+                        this.disabledTemplate = false
+                    }
+                }   
+                else if(SMSSettingVal['templateButtonPicklist'][this.Spaceprefix+'Value__c'] == 'Hide'){
+                    this.istemplatePicklistVisible = false;    
+
+                }
+                if((SMSSettingVal['emojibutton'][this.Spaceprefix+'Value__c'] == 'Enable')|| (SMSSettingVal['emojibutton'][this.Spaceprefix+'Value__c'] == 'Disable')){ 
+                    this.isEmojiVisible  = true;
+                    this.isEmoji = true;
+                    if(SMSSettingVal['emojibutton'][this.Spaceprefix+'Value__c'] == 'Disable')
+                    {
+                        this.isEmojiDisable = true
+                        this.emojiDisabled = true;
+                    }
+                    else
+                    {
+                        this.isEmojiDisable = false
+                        this.emojiDisabled = false;
+                    }
+                }   
+                else if(SMSSettingVal['emojibutton'][this.Spaceprefix+'Value__c'] == 'Hide'){
+                    this.isEmojiVisible = false;
+                    this.isEmoji = false;
+                }        
+            } else if (error) {
+                console.log('error wire',error);
+            } 
+        }catch(error) {
+        console.log('>>>>>>Line 117>>>>>',error);
+    }
+    }
+
+    @wire(isMMSEnabled)
+    isMMSEnabled({data,error}){
+        try {
+        if(data){
+            this.mmsEnabled = data;
+        }else {
+            this.mmsEnabled = false;
+        }
+    } catch(error) {
+        console.log('>>>>>>Line 131>>>>>',error);
+    }
+    }
+    @wire(SenderNumberList)
+    SenderNumberList({data,error}){
+        try {
+        if(data){
+
+            this.configMap = data;
+             data=JSON.parse(JSON.stringify(data));
+              for(let i =0;i<data.length ; i++) {   
+                let selected =  false;
+                if(data[i].isDefaultSender === true) {
+                    selected = true;
+                    this.senderNumber =data[i].value;
+                    this.defaultSelectVal = data[i].value;
+                }                           
+                this.senderNumberArray.push({value:data[i].label,key:data[i].value,isSelected:selected});
+            } 
+            if(this.senderNumber == null || this.senderNumber == '' || this.senderNumber == undefined){
+
+                this.senderNumber = this.senderNumberArray[0].key; 
+            }
+
+             this.defaultSelectVal = this.senderNumber;
+           this.mmsAvailabilityJS(this.senderNumberArray,this.senderNumber,this);
+           this.getchannel();
+        }else if (error){
+            console.log('=====error wire==',error);
+        }
+    } catch(error) {
+        console.log('>>>>>>Line 155>>>>>',error);
+    }
+    }
+
+    //from here by Priya
+    csvRemove(event){
+        try {
+            let csvInfo = $(event.target).parents('.csvInfo');
+            csvInfo.hide().siblings('.csvUpload, a').show().siblings('input[type=file]').val("");
+            this.toNumbersLstSize = null;
+            this.content = '';
+            this.template.querySelector('.searchBar').disabled = false;
+            this.template.querySelector('.numberField').disabled = false;
+        } catch(error) {
+            console.log('>>>>>>Line 169>>>>>',error);
+        }
+    }
+    handleLoad(event){
+        try {
+            event.target.nextSibling.click();
+        } catch(error) {
+            console.log('>>>>>>Line 176>>>>>',error);
+        }
+    }
+    readFile(event) {
+        try {
+            this.isCSV=true;
+            let reader = new FileReader();
+            reader.onload = this.showContent.bind(this, reader, event.target);
+            reader.onerror = this.showError.bind(this);
+            reader.readAsText(event.target.files[0]);
+        } catch(error) {
+            console.log('>>>>>>Line 186>>>>>',error);
+        }
+    }
+    handleDownload(event){
+      event.target.href = resourcefile + '/docs/sampleCSVFile.csv';//added
+    }
+    showError() {
+        try {
+            this.content = '';
+            this.error = 'An error occurred!';
+        } catch(error) {
+            console.log('>>>>>>Line 197>>>>>',error);
+        }
+    }
+    showContent(reader, csvInput) {
+        try {
+            this.error = '';
+            this.content = reader.result;
+            csvInput.previousSibling.style.display = "none";    //upload button hide
+            csvInput.parentNode.lastChild.style.display = "none";   //sample file link hide
+            fetchNumbers({toNumbers : reader.result})
+            .then(result =>{
+                this.toNumbersLstSize = result+' To Numbers Selected';
+                csvInput.nextSibling.style.display = "block";
+                this.template.querySelector('.searchBar').disabled = true;
+                this.template.querySelector('.numberField').disabled = true;
+            })
+            .catch(error => {
+                console.log('=========catch-fetchNumbers-showContent',error);
+            });
+            document.getElementsByClassName("formClass");
+        } catch(error) {
+            console.log('>>>>>>Line 222>>>>>',error);
+        }
+    }
+    //till here by Priya
+    handleChange(event){
+        try {
+            // console.log('dataList.value',this.fileUpload);
+            // if (this.channelVal === "WhatsApp" ) {
+            //     if(!this.whatsAppMediaName)
+            //     {
+            //         console.log('dataList.value',this.fileUpload);
+            //     this.fileUpload=true;
+            // }
+            // }
+            //   if (this.channelVal==="SMS/MMS") {
+            //      this.Area=false;
+            //  }
+            this.fileUpload=false;
+             this.whatsAppMediaName='';//added by Himanshi Verma
+           // this.showClearButton=false;//added by Himanshi Verma
+            this.isRecord=false;//added by Himanshi Verma
+             this.isAudio = false;//added by Himanshi Verma
+            this.audioURL = '';//added by Himanshi Verma
+            this.Area = false;//added by Himanshi Verma
+            this.isVoiceDrop = false;//added by Himanshi Verma
+            this.templateContainer = false;
+            this.folderContainer_1 = false;
+            this.folderContainer_2 = false;
+            this.dropdownData = {
+                selectedVoiceDropVal: '',
+                templateContainerVal: '',
+                folderContainer_1Val: '',
+                folderContainer_2Val: ''
+             }
+            this.records = [];
+            this.recId =''; // Added by Annu 02-02-2023
+            this.phoneApi = [];
+            this.folderList = [];
+            this.templateList = [];
+            //this.fileUpload=false;
+            this.recName = '';
+            this.phoneApiVal = '';
+            this.messageText = '';
+            this.selectedTemplate ='';//Added by Suresh 12-6-21
+            this.isFormVisible = false;
+            this.template.querySelector(".sendBtn").removeAttribute("disabled");
+            //this.template.querySelector(".utilityTextArea").removeAttribute("disabled"); // Commented by Annu 27/01/2-23
+            this.template.querySelector('.utilityTextArea').value = '';
+            this.senderNumberArray
+            this.senderNumberArray.forEach((item, i) => {
+                if (item.value == this.defaultSelectVal) {
+                    this.senderNumberArray[i].isSelected = true;
+                }
+                else
+                {
+                    this.senderNumberArray[i].isSelected = false;
+                }
+            })
+            this.template.querySelector('.segmentId').innerHTML = 'You can enter up to ' + this.charlimit + ' characters'; //added to reset character countector('.segmentId').innerHTML = 'You Can Enter Up To ' + this.charlimit + ' Characters'; //added to reset character count
+            $(".removeAttachment").each(function() {
+                $(this).click();
+            });
+
+            let val = event.target.value;
+            if(val == undefined){
+                val = '';
+            }
+            if(val.length == 0) {
+                this.template.querySelector('.showMessage').innerHTML = "";
+                this.fieldsVisible = false;
+                this.template.querySelector('.allEmojiContainer').classList.add('small');
+             }
+             searchRecords({queryTerm : val})
+            .then(result => {
+                if(result == undefined || result.length == 0){
+                    this.recordsAvailable = false;
+                }else{
+                    this.recordsAvailable = true;
+                    this.records = result;
+                }
+             })
+            .catch(error => {
+                this.records = [];
+                console.log('=======handlechange catch',error);
+            });
+        }catch(error){
+            console.log('=======handlechange catch',error);
+        }
+    }
+    handleClick(event) {
+        try{
+            //  if (this.template.querySelector('.channelSelect').value === "WhatsApp" ) {
+            //     if(!this.whatsAppMediaName)
+            //     {
+            //     this.fileUpload=true;
+            // }
+            // }
+            
+            this.isRecord=true;
+            this.recordsAvailable = false;
+            let selectedIndex = event.currentTarget.id;
+            this.recName = event.currentTarget.getAttribute("data-item");
+            this.recId =  selectedIndex.substring(0,selectedIndex.indexOf('-'));
+            if(this.recId.length === 18) {
+                this.fieldsVisible = true;
+                this.template.querySelector('.allEmojiContainer').classList.remove('small');
+
+                this.content = '';
+                if(this.records === undefined)
+                    this.records = [];
+                else 
+                    this.records.length = 0;
+                this.isFormVisible = true;
+               let parentThis = this;
+               this.senderNumberArray.forEach((ele,i)=>{
+                    if(ele.value.indexOf(this.senderNumber) != -1){
+                        this.senderNumber = ele.key;
+                    }
+                })
+                getRecord({recordId :this.recId,senderNumber :this.senderNumber[this.Spaceprefix+'Number__c']})
+                .then(result => {
+
+                    try {   
+                        if(result[0].stickySenderVal != null && result[0].stickySenderVal != undefined && result[0].stickySenderVal != ''){
+                            this.selectedValueOnRecord = result[0].stickySenderVal;
+                            this.senderNumberArray.forEach((ele,i)=>{
+                                if(ele.value.indexOf(this.selectedValueOnRecord) != -1){
+                                    this.senderNumberArray[i].isSelected = true;
+                                }else{
+                                    this.senderNumberArray[i].isSelected = false;
+                                }
+                            })
+
+                          }
+                        this.complianceData = [];
+                        if(result){
+                            this.complianceData.push({
+                                value: "isCompanywise",
+                                key: result[0].mapCompJS.isCompanywise
+                            });
+                            for (let i = 0; i < result.length; i++) {
+                                this.phoneApi.push({
+                                    value: result[i].phoneLabel,
+                                    key: result[i].phoneVal,
+                                    api: result[i].phoneApi
+                                });
+                                var phnApi = result[i].phoneApi;
+                                if (phnApi != "" || phnApi != "undefined")
+                                    this.complianceData.push({
+                                        value: phnApi,
+                                        key: result[i].mapCompJS.phnApi
+                                    });
+                             }
+                            if( result[0].phoneVal === undefined)
+                                this.phoneApiVal = '';
+                            else
+                                this.phoneApiVal = result[0].phoneVal;
+                               this.getchannelJS();//added by Himanshi Verma                                                
+                            var defaultPhoneApi = result[0].defaultPhoneApi;
+                              if(this.phoneApi.length > 0){
+                                let phoneApiList = this.phoneApi;
+                                var optionList = "";
+                                //to append all the api's into an 'li' tag and then to 'ul.select21'
+                                $.each(phoneApiList, function(i, e) {
+                                    optionList += "<li><label class='lwc_checkbox'><input type='checkbox' class='getnum' data-api='"+e.api+"' value='"+e.value+"' name='"+i+"'>"+e.value+"</label></li>";
+                                });
+                                parentThis.template.querySelector('.select21').innerHTML = optionList;
+                                //to select first api by default and update its value in input field
+                                if(defaultPhoneApi){
+                                    parentThis.template.querySelector('.select21 input').checked = true;
+                                    parentThis.template.querySelector('.apiSelector').value = parentThis.template.querySelector('.select21 input').value;
+                                }else{
+                                    this.phoneApiVal = '';
+                                    parentThis.template.querySelector('.apiSelector').value ='None Selected';
+                                }
+                                parentThis.template.querySelector('.apiSelector').addEventListener('click',function(e){
+                                    var apiSelectorList = parentThis.template.querySelector('.select21');
+                                    if (window.getComputedStyle(apiSelectorList).display === "none") {
+                                        apiSelectorList.style.display = 'block';
+                                    } else{
+                                        apiSelectorList.style.display = 'none';
+                                    }
+                                    e.stopImmediatePropagation();
+                                })
+
+                                 var APIList = $(parentThis.template).children().find('.select21 input');
+                                APIList.change(function (event) {
+                                    var apiValue = '';
+                                    let checkedCount = 0;
+                                    for (var i = 0; i < APIList.length; i++) {
+                                        if (APIList[i].checked) {
+                                            if(checkedCount<5)
+                                            {
+                                                if (apiValue === '') {
+                                                    apiValue = APIList[i].value;
+                                                } else {
+                                                    apiValue = apiValue + ',' + APIList[i].value;
+                                                }
+                                                this.showSendToMessage = false;
+                                            }
+                                            else
+                                            {
+                                                this.showSendToMessage = true;
+                                            }
+                                             checkedCount++;
+                                        }
+                                    }
+                                    if(this.showSendToMessage)
+                                    {
+                                        event.target.checked = false;
+                                        let ele = parentThis.template.querySelector('.sendToPupup');
+                                        window.$(ele).fadeIn(500,function(){
+                                            setTimeout(()=>{
+                                                window.$(ele).fadeOut();
+                                            },5000)
+                                        });
+                                        return false;
+                                    }
+                                    else
+                                    {
+                                        let ele = parentThis.template.querySelector('.sendToPupup');
+                                        window.$(ele).fadeOut();
+                                    }
+                                    parentThis.template.querySelector('.apiSelector').value = apiValue;
+                                    if (apiValue === '')
+                                        parentThis.template.querySelector('.apiSelector').value = 'None Selected';
+
+                                    getRecord({ recordId: parentThis.recId, senderNumber: parentThis.senderNumber[parentThis.Spaceprefix + 'Number__c'], selectTemplate: parentThis.selectedTemplate })
+                                        .then(result => {
+                                            try {
+                                                if (result !== null && result !== undefined && result.length > 0) {
+                                                    setTimeout(() => {
+                                                        checkBoxSelect(result[0].mapCompJS, parentThis);
+                                                    }, 100);
+                                                }
+                                            }
+                                            catch (e) {
+                                                console.log('getRecord error...', e);
+                                            }
+                                        })
+                                    /* Ended By Suresh 11-6-21 */
+                                })
+                                var phoneapiSelector = $(parentThis.template).children().find('.getnum');
+                                var phoniapiTempArr = [];
+                                if (parentThis.phoneApiVal) // added
+                                    phoniapiTempArr.push(parentThis.phoneApiVal);
+                                phoneapiSelector.change(function (e) {
+
+                                  setTimeout(()=>{
+                                       if(!this.showSendToMessage)
+                                        {
+                                            if (e.target.checked === true && phoneApiList[e.target.name].key !== undefined && phoneApiList[e.target.name].key !== '') {
+                                                phoniapiTempArr.push(phoneApiList[e.target.name].key);
+                                                parentThis.phoneApiVal = phoniapiTempArr.toString();
+                                            }
+                                            if (e.target.checked === false) {
+                                                let index = phoniapiTempArr.indexOf(phoneApiList[e.target.name].key);
+                                                if (index != -1 && index != '-1') {
+                                                    phoniapiTempArr.splice(phoniapiTempArr.indexOf(phoneApiList[e.target.name].key), 1);
+                                                    parentThis.phoneApiVal = phoniapiTempArr.toString();
+                                                }
+                                            }
+                                        }
+                                     },100);
+                                })
+                                parentThis.template.addEventListener('click',function(e){
+                                    //to hide multipicklist on document click 
+                                    if(!(($(e.target).parents().addBack().is('.select21')) || ($(e.target).parents().addBack().is('.apiSelector')))){
+                                        if(parentThis.template.querySelector('.select21') != undefined){
+                                            parentThis.template.querySelector('.select21').style.display = "none";
+                                        }
+
+                                        }
+                                   try{
+                                        if(!(e.target.className === 'searchBar')){
+                                            if(parentThis.template.querySelector('.listContent ul') != undefined){
+                                                parentThis.template.querySelector('.listContent ul').innerHTML = "";
+                                            }
+                                        }
+                                    }catch(error){
+                                        console.log('error :>> ', error);
+                                    }
+                                     //to hide emojis on document click
+                                    if(!($(e.target).parents().addBack().is('.emojiComponent'))){
+                                        if(parentThis.template.querySelector('.allEmojiContainer') != undefined){
+                                            parentThis.template.querySelector('.allEmojiContainer').style.display = "none";
+                                        }
+                                    }
+                                });
+                                setTimeout(() => {
+                                    checkBoxSelect(result[0].mapCompJS, parentThis);
+                                }, 1000);
+                            }
+                        }
+                    } catch(error) {
+                        console.log('>>>>>>Line 402>>>>>',error);
+                    }
+                })
+                .catch(error => {
+                    console.log('====catch catch error',error);
+                });
+               if(this.isFolderCheckboxVisible){
+                    this.isFolderChecked = true;
+                    this.getFolderJS();
+                }
+            }
+        }catch(error){
+        console.log('==========error click',error);
+        }       
+    }
+ hideErrorBox(event) {
+        this.errorMsg = '';
+        this.isError = false;
+       }
+      getFileTypeJS(file,parentThis,fileType,recordId) {
+        try {
+            
+            let found = true;
+            let fileName = '';
+            let unsupportedType = '';
+            for(let i=0;i<file.length;i++) {
+                if(!fileType.includes(file[i].type)) {
+                    found = false;
+                    unsupportedType = file[i].type;
+                }
+            }
+            if(unsupportedType !== ''){
+                this.errorMsg = 'This file type is not supported. Please choose another file type.';
+                this.isError = true;
+            }
+            if(found) {
+                for(let i=0;i<file.length;i++) {
+                    if(file[i].size > this.maxDocSize)
+                    {
+                        if(file[i].size >= 1024*1024){
+                            var convertedFileSize = Math.round((file[i].size/(1024*1024))*100)/100;
+                            this.errorMsg = 'You have exceeded the limit of size.. ('+file[i].size+' MB). Maximum limit of size you can use is 4.5 MB.';
+                            this.isError = true;
+                        }
+                    }
+                    else {
+                        this.totalFileSize += file[i].size;
+                        if(this.totalFileSize > this.maxDocSize)
+                        {
+                            var convertedFileSize = Math.round((this.totalFileSize/(1024*1024))*100)/100;
+                            this.errorMsg = 'You have exceeded the limit of size.. ('+convertedFileSize+' MB). Maximum limit of size you can use is 4.5 MB.';
+                            this.totalFileSize -=  file[i].size;
+                            this.isError = true;
+                        }
+                        else
+                        {
+                            var reader= new FileReader();
+                            reader.readAsDataURL(file[i]);
+                            reader.onload = function(event){
+                                let blobFile = event.target.result;
+                                if(blobFile.length>5999500) {                                
+                                    parentThis.errorMsg = file[i].name+' is too large file. Please select a small size file.';
+                                    parentThis.isError = true;
+                                } else {
+                                    parentThis.DocArray.push(file[i].name+blobFile);
+                                    parentThis.filenameArr.push(file[i].name);
+                                    parentThis.handleKeyUp();
+                                    parentThis.showAttachmentDetail(file[i].name,file[i].size,parentThis,i);
+                                }
+                            };
+                        }
+                        
+                    }
+                }
+            }
+        }catch(error) {
+            console.log('Exception Found ==== : ',error);
+        }
+    }
+    showAttachmentDetail(fileName,fileSize,parentThis,count) {
+        try {
+            if((fileName !== null) && (fileName !== '') && (fileName !== undefined)) {
+                let fileDetail = fileName;
+                let size = '';
+                if(fileSize >= 1024*1024) {
+                    let convertedFileSize = Math.round((fileSize/(1024*1024))*100)/100;
+                    size = convertedFileSize + ' MB';
+                    fileDetail += '('+size +')';
+                }else if(fileSize >= 1024) {
+                    let convertedFileSize = Math.round((fileSize/1024)*100)/100; 
+                    size = convertedFileSize + ' KB';
+                    fileDetail += '('+size+')';
+                }else {                    
+                    let convertedFileSize = fileSize;
+                    size = convertedFileSize + ' Byte';
+                    fileDetail += '('+size+')';
+                }
+                parentThis.template.querySelector('.doctext').innerHTML = 'Total size of selected files must not be <br> greater than 4.5 MB.';
+                let attachmentHolder = document.createElement('div');
+                attachmentHolder.className = "attachmentHolder";
+                let attachmentContainer = parentThis.template.querySelector('.doctable');
+                let Icon_removeFile = '<svg xmlns="http://www.w3.org/2000/svg" width="13px" height="13px" viewBox="0 0 24 24" id="close"><path d="M14.6 11.9l6-6c.3-.3.3-.7 0-1l-.9-1c-.3-.3-.7-.3-1 0L12.6 10c-.1.2-.4.2-.6 0L6 3.9c-.3-.3-.7-.3-1 0l-1 .9c-.3.3-.3.7 0 1l6.1 6.1c.1.1.1.4 0 .6L4 18.6c-.3.3-.3.7 0 1l.9.9c.3.3.7.3 1 0l6.1-6c.2-.2.5-.2.6 0l6.1 6c.3.3.7.3 1 0l.9-.9c.3-.3.3-.7 0-1l-6-6c-.2-.2-.2-.5 0-.7z"></path></svg>';
+                let attachmentBody = '<span class="attachmentName">'+fileName+'</span><span class="attachmentSize">&nbsp;('+size+')</span><span id="removeAttachment_'+fileName+'" class="removeAttachment" data-method="'+fileName+'" data-size="'+fileSize+'" data-sharedName="'+count+'">'+Icon_removeFile+'</span>';
+                attachmentHolder.innerHTML = attachmentBody;
+                attachmentContainer.appendChild(attachmentHolder);
+                if(attachmentContainer.children.length>4){
+                    parentThis.template.querySelector('.mmsButtonSection').style.display = "none";
+                }
+                let ele2 =  parentThis.template.querySelectorAll('.removeAttachment')
+                $(ele2).each(function(){
+                    $(this).on('click', function(e) {
+                        if($(this).attr('data-sharedName') < 5) {
+                            let size = $(this).attr('data-size');
+                            parentThis.totalFileSize -= Number(size);
+                            parentThis.DocArray.splice(parentThis.DocArray.indexOf($(this).attr('data-method')),1);
+                            $(this).parent().remove();
+                            let totalAttachments = attachmentContainer.children.length;
+                            if(totalAttachments<1){
+                                parentThis.template.querySelector('.doctext').innerHTML = 'You can select upto 5 files.';
+                            }
+                            if(totalAttachments<5){
+                                parentThis.template.querySelector('.mmsButtonSection').style.display = "block";
+                            }
+                            parentThis.handleKeyUp();
+                            e.stopImmediatePropagation();
+                        }
+                    });
+                });
+            }
+        } catch(error) {
+            console.log('===getfiletype js error==',error);
+        }
+    }
+   async pickSenderNumber(event) {
+        this.senderNumber = this.senderNumberArray[event.target.selectedIndex].key;
+        try {
+            /*Added by shubham for compliance on load on number change*/
+            this.complianceSenderNumChngjs(this.senderNumber,this.recId);
+           /*added till here*/
+            this.mmsAvailabilityJS(this.senderNumberArray,this.senderNumber,this);
+            //added by Himanshi Verma
+           
+            if (this.fieldsVisible === true) {
+              await this.getchannelJS();
+               if (this.template.querySelector('.channelSelect').value === 'Text Message') {
+            this.fileUpload=false;
+            this.Area=false;
+            this.whatsAppMediaName='';
+           }
+           else if (this.template.querySelector('.channelSelect').value === "WhatsApp" && this.boolTextareaEnabled === true) {
+            this.Area = false;
+        
+            if(this.whatsAppMediaName === '')
+               {
+                this.fileUpload=true;
+            }
+        }
+        else if (this.template.querySelector('.channelSelect').value === "WhatsApp" && this.boolTextareaEnabled === false) {
+            this.Area = true;
+        
+            if(this.whatsAppMediaName === '')
+           {
+            this.fileUpload=true;
+        }
+        }
+        else if (this.template.querySelector('.channelSelect').value === "Voicemail" ) {
+            this.Area = true;
+            this.fileUpload=false;
+            this.whatsAppMediaName = '';
+            // if(!this.whatsAppMediaName)
+            // {
+            // this.fileUpload=false;
+        // }
+        }
+           
+            //     if(!this.whatsAppMediaName && this.template.querySelector('.channelSelect').value === "WhatsApp" )
+            //     {
+            //     this.fileUpload=true;
+            // }
+           
+            }
+          this.getchannel();
+            
+            this.templateList = [];
+            this.templateList.push({value :'--None--' , key : '--None--'});
+            
+            
+             this.providerName = this.senderNumber[this.Spaceprefix+'Provider__c'];
+           
+        //    console.log('>>>>>>channelVal>>>>>',this.template.querySelector('.channelSelect').value);
+            // console.log('>>>>>>providerName>>>>>',providerName);
+            // if (this.whatsAppMediaName=== true) {
+            //     this.fileUpload=false;
+            // }
+            //
+            // console.log('>>>>>>providerName>>>>>',providerName);
+            //  if( !this.whatsAppMediaName && (this.providerName.includes('VALUEFIRST') || this.providerName.includes('360_VF13'))){
+               
+            // else if (this.Area=== true &&  (!(this.providerName.includes('VALUEFIRST')) || !(this.providerName.includes('360_VF13')) )) {
+            //     this.fileUpload=false;
+            // }
+            //Ended by Himanshi Verma
+        } catch(error) {
+            console.log('>>>>>>Line 532>>>>>',error);
+        }
+    }
+    /*added by shubham for onload compliance on sender number change*/
+    complianceSenderNumChngjs(senderNumber,recordId){
+        complianceSenderNumChng({senderNumber : senderNumber.Number__c,recordId : recordId})
+        .then(resultComp=> {
+            getRecord({recordId :this.recId,senderNumber :this.senderNumber[this.Spaceprefix+'Number__c'],selectTemplate:this.selectedTemplate})
+            .then(result => {
+             try {
+                    if(result !== null && result !== undefined && result.length > 0){
+                        setTimeout(() => {                        
+                            checkBoxSelect(result[0].mapCompJS, this);
+                        }, 100);
+                    }                      
+                }
+                catch(e){
+                    console.log('getRecord error...',e);
+                }
+            })
+                    
+        })
+    }
+    /*till here*/
+    folderListVisibility() {
+        try{
+            this.isFolderChecked = this.template.querySelector('.folderCheckbox').checked;
+            this.selectedTemplate ='';//Added By Suresh 15-6-21
+            if(this.isFolderChecked === false){
+                this.template.querySelector('.folderlist').style.display = 'none';
+                this.templateList = [];
+                this.getTemplateJS('');
+                this.template.querySelector('.utilityTextArea').value = '';// added to clear TextArea
+            }
+            else{
+                this.templateList = [];
+                this.getTemplateJS('');
+                this.template.querySelector('.folderlist').style.display = 'block';
+                
+            } 
+            this.reRenderTextarea('');
+        } catch(error) {
+            console.log('>>>>>>Line 554>>>>>',error);
+        }
+    }
+    getFolderJS() {
+
+        getFolderList({isFolderChecked : this.isFolderChecked})
+        .then(result=>{
+            this.folderList.push({value :'--None--' , key : '--None--'});
+            if(result !== undefined) {
+                let resultdata = result;
+                for(let key in resultdata) {
+                    this.folderList.push({value :resultdata[key].Name, key : resultdata[key].Id});
+                }
+            }
+        })
+        .catch(error=>{
+            console.log('=====error======',error);
+        });
+    }
+    getTemplateJS(folderName) {
+        try {
+
+        //    if (this.template.querySelector('.channelSelect').value!=NULL && this.template.querySelector('.channelSelect').value === 'WhatsApp'){
+        //     this.channelVal= this.template.querySelector('.channelSelect').value;
+        //    }
+          
+           if(this.channelVal == 'Text Message' || this.channelVal == 'SMS'){
+								this.channelVal = 'SMS/MMS';
+						}
+            this.templateList.push({value :'--None--' , key : '--None--'});
+            getTemplateList({recordId:this.recId,folderName:folderName,channelType:this.channelVal})
+            .then(result=>{
+                if(result) {
+                    let resultdata = result;
+                    for(let key in resultdata) {
+                        this.templateList.push({value :resultdata[key].Name, key : resultdata[key]});
+                    }
+                }
+            })
+            .catch(error=>{
+                console.log('======gettemplate',error);
+            });
+        } catch(error){
+            console.log('======gettemplate catch',error);
+        }
+        
+    }
+    handleFolderChange() {
+        try{
+            this.reader = false;//added by Himanshi Verma
+                // added to clear textarea 
+                this.selectedTemplate ='';//Added By Suresh 15-6-21
+                this.template.querySelector('.utilityTextArea').value = '';
+                this.reRenderTextarea('');
+                // till here
+                this.templateList = [];
+                let foldername = this.template.querySelector('.folderselect').value;
+                this.getTemplateJS(foldername);
+                /* Added By Suresh 11-6-21 */
+                 getRecord({recordId :this.recId,senderNumber :this.senderNumber[this.Spaceprefix+'Number__c'],selectTemplate:this.selectedTemplate})
+                .then(result => {
+                     try {
+                       if(result !== null && result !== undefined && result.length > 0){
+                            setTimeout(() => {         
+                                checkBoxSelect(result[0].mapCompJS, this);
+                            }, 100);
+                        }                      
+                    }
+                    catch(e){
+                        console.log('getRecord error...',e);
+                    }
+                })
+                /* Ended By Suresh 11-6-21 */
+        } catch(error) {
+            console.log('>>>>>>Line 601>>>>>',error);
+        }
+    }
+    handleTemplateChange(event) {
+        try{
+            let templateText = this.templateList[event.target.selectedIndex].key[this.Spaceprefix+'SMSBodyNew__c'];
+             this.selectedTemplate =  event.target.value;
+            if(this.templateList[event.target.selectedIndex].key[this.Spaceprefix+'SMSBodyNew__c'] !==null){
+                getTemplateContents({messageText : templateText,recordId:this.recId})
+                .then(result=>{
+                    this.template.querySelector('.utilityTextArea').value = result;
+                    // added to enable/disable textarea.
+                    if(result){
+                        this.reRenderTextarea('Template');
+                    }else{
+                        this.reRenderTextarea('');
+                    }
+                    //till here
+                    this.handleKeyUp();
+                     /* Added By Suresh 11-6-21*/
+                     getRecord({recordId :this.recId,senderNumber :this.senderNumber[this.Spaceprefix+'Number__c'],selectTemplate:this.selectedTemplate})
+                     .then(result => {
+                         try {
+                            if(result !== null && result !== undefined && result.length > 0){
+                                 setTimeout(() => {                        
+                                     checkBoxSelect(result[0].mapCompJS, this);
+                                 }, 100);
+                             }                      
+                         }
+                         catch(e){
+                             console.log('getRecord error...',e);
+                         }
+                     })
+                     /* Ended By Suresh 11-6-21 */
+                })
+                .catch(error=>{
+                    console.log('======method result catch',error);
+                    this.template.querySelector('.utilityTextArea').value = templateText;
+                })            
+            }
+        } catch(error) {
+            console.log('>>>>>>Line 619>>>>>',error);
+        }
+    }
+    handleKeyUp() {
+        try{
+            let ele = this.template.querySelector('.utilityTextArea');
+            if(ele.scrollHeight  > ele.clientHeight)
+                this.template.querySelector(".emojiComponent").style.right = "16px";
+            else
+                this.template.querySelector(".emojiComponent").style.right = "5px";
+            this.messageText = this.template.querySelector('.utilityTextArea').value;
+            let segment = 1;
+            let isTrue = this.isGSMAlphabet(this.messageText);
+            let nonGsmLength = this.messageText.length;
+            let strLength = this.messageText.length + this.countchar(this.messageText,'{') + this.countchar(this.messageText, '}') + this.countchar(this.messageText, '[') + this.countchar(this.messageText, ']');
+            if(isTrue) {
+                if (strLength <= 160) {
+                    segment = 1;
+                } else {
+                    if (strLength % 153 === 0)
+                        segment = (strLength / 153);
+                    else
+                        segment = (strLength / 153) + 1;
+                }
+            }else {
+                if (nonGsmLength <= 70) {
+                    segment = 1;
+                } else {
+                    if (nonGsmLength % 67 === 0)
+                        segment = (nonGsmLength / 67);
+                    else
+                        segment = (nonGsmLength / 67) + 1;
+                }
+            }
+            if (nonGsmLength === 0) {
+                segment = 0;
+            }
+            let showSegment =0;
+            if(this.DocArray.length > 0){
+                showSegment = 1;
+            }else{
+                showSegment = parseInt(segment,10); 
+            }
+
+            if( nonGsmLength == 1 ){
+                this.template.querySelector('.segmentId').innerHTML = nonGsmLength+' Characters / '+showSegment+' Segment';
+            }else if( showSegment == 0 ){
+                this.template.querySelector('.segmentId').innerHTML = 'You can enter up to ' + this.charlimit + ' characters';
+            }else if( showSegment >= 1 ){
+                this.template.querySelector('.segmentId').innerHTML = nonGsmLength+' Character / '+showSegment+' Segment';
+            }else{
+                let targetAttachment = this.template.querySelector('.attachmentContainer');
+                if(targetAttachment){ //commented this !targetAttachment for charater count issue.
+                    this.template.querySelector('.segmentId').innerHTML = 'You can enter up to ' + this.charlimit + ' characters';
+                }else if(nonGsmLength ==0 ){ // Added else if for charater count issue after removing all characters from text area.
+                    this.template.querySelector('.segmentId').innerHTML = 'You can enter up to ' + this.charlimit + ' characters';
+                }
+                else{
+                    this.template.querySelector('.segmentId').innerHTML = nonGsmLength+' Characters /1 Segment';
+                }
+            }
+
+        }catch(e){
+            console.log('======catch char count',e);
+        }
+        
+    }
+  isGSMAlphabet(textMsg){
+        try{
+            var regexp = new RegExp("^[A-Za-z0-9 @¤£¥èéùìòÇØøÅå§¡ÄÖÑÜ¿äöñüàÆæßÉ\u0394\u03A6\u0393\u039B\u03A9\u03A0\u03A8\u03A3\u0398\u20AC\u039E!\"#$%&'`()*+,_\\-./:;<=>?^{}\\\\\\[~\\]|\\r\\n\\s]*$");
+            return regexp.test(textMsg);
+        }catch(error){}
+    }
+    countchar(textMsg,c) {
+        try{
+            let result = 0,i = 0;
+            for(i; i < textMsg.length; i++) {
+                if (textMsg[i] === c)
+                    result++;
+            }
+            return result;
+        } catch(e){
+            console.log('----',e);
+        }
+    }
+    mmsAvailabilityJS(senderNumberArray,senderNumber,parentThis) {
+        try{
+            let providerName = '';
+            let prefix = '';
+            for(let i = 0; i< senderNumberArray.length;i++){
+                if(senderNumberArray[i].key == senderNumber){
+                    providerName = senderNumberArray[i].key[this.Spaceprefix+'Provider__c'];
+                    break;
+                }
+            }
+            if(providerName != undefined && providerName != ''){
+                checkMMSAvailability({providerName : providerName})
+                .then(resultMMS=> {
+
+                   if( isMMSEnabled && resultMMS !== undefined || resultMMS !== 'undefined') {
+                        parentThis.supportedFileType = resultMMS.ContentTypes;
+                        parentThis.maxDocSize = parseInt(resultMMS.Max_Size);
+                        let mmsDivCheck = parentThis.template.querySelector('.attachmentIcon');
+                        if(mmsDivCheck === null){
+                            let mmsdiv = document.createElement("div");
+                            mmsdiv.className = 'attachmentIcon';
+                            mmsdiv.innerHTML = '<input type="button" title="Add Files" value="Add Files" id="lwc__Attachment_" class="slds-button slds-button_brand lwc__Attachment_" style="display:none"><input type="file" class="fileInput"  accept="'+parentThis.supportedFileType+'" multiple id="lwc__docId_" style="display:none" /><span class="doctext" style="font-size: smaller; display:none">You can select upto 5 files.</span>';
+                            parentThis.template.querySelector('.mmsButtonSection').appendChild(mmsdiv);
+                            let inputEle = parentThis.template.querySelectorAll('.lwc__Attachment_')
+                            $(inputEle).each(function(){
+                                $(this).click(function(){
+                                    let totalAttachments = parentThis.template.querySelector('.doctable').children.length;
+                                    if(totalAttachments<5){
+                                        let ele1 = parentThis.template.querySelector('#lwc__docId_');
+                                        $(ele1).val('');
+                                        $(ele1).click();
+                                    }
+                                });
+                            });
+                            let inputEle1 = parentThis.template.querySelectorAll('.fileInput')
+                            $(inputEle1).each(function(){
+                                $(this).change(function(){
+                                    let arrFileType = [];
+                                    arrFileType = parentThis.supportedFileType.split(',');
+                                    let ele1 = parentThis.template.querySelector('#lwc__docId_');
+                                    var filebody = $(ele1)[0].files;
+                                     var filesNum = filebody.length;
+                                    let attachmentsInDocTable = parentThis.template.querySelector('.doctable').children.length;
+                                    let totalAttachmentsToShow = attachmentsInDocTable+filesNum;
+                                    if(filebody !== '') {
+                                        if(totalAttachmentsToShow > 5){
+                                            parentThis.errorMsg = 'You cannot select more than 5 files.';
+                                            parentThis.isError = true;
+                                        } else {
+                                            parentThis.getFileTypeJS(filebody,parentThis,arrFileType,parentThis.recId);
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                    }    
+                })
+                .catch(error => {
+                    console.log('======checkMMSAvailability error ',error);
+                });
+            }
+        } catch(error) {
+            console.log('>>>>>>Line 763>>>>>',error);
+        }
+    }
+    fileUploadHandler(){
+        this.fileUpload=true;
+         }
+    handleFile(event){
+        this.DocArray=[];
+        this.isMMS=true;
+         this.whatsAppMediaName=event.target.files[0].name;
+     //this.showClearButton=true;
+  try{ if (event.target.files[0].size > this.MAX_FILE_SIZE) {
+    //alert("File Size Can not exceed more than 16 MB");
+    this.errorHeader = 'Error';
+    this.errorMsg = 'File Size Can not exceed';
+   this.isError = true;
+    this.whatsAppMediaName='';
+}
+else {
+    let reader = new FileReader()
+    reader.onload = () => {
+        var base64 = reader.result;
+        this.DocArray.push(this.whatsAppMediaName + base64);     
+        this.fileUpload=false;
+        this.fileData = {
+            'filename': this.whatsAppMediaName,
+            'base64': base64,
+            'recordId': this.recId
+        }
+       // console.log(this.fileData)
+    }
+    reader.readAsDataURL(event.target.files[0])
+    
+}
+}catch(error){
+    console.log('-------->>>>>>>>>>catch file',error);
+}
+ }
+ handleClear(){
+        this.whatsAppMediaName='';
+       // this.showClearButton=false;
+    //    console.log('>>>>>>result>>>>>',this.Area);
+    //         console.log('>>>>>>providerName>>>>>',this.providerName);
+    //    if (((this.providerName.includes('VALUEFIRST')) || (this.providerName.includes('360_VF13')) )) {
+    //     this.fileUpload=true;
+    //     // console.log('>>>>>>result>>>>>',this.Area);
+    //     //     console.log('>>>>>>providerName>>>>>',this.providerName);
+    //    }
+    //    else if (this.Area===true) {
+    //     // console.log('>>>>>>else if>>>>>',this.Area);
+    //     // console.log('>>>>>>providerName>>>>>',this.providerName);
+   
+    //     this.fileUpload=false;
+    //    }
+    //    else{
+        // console.log('>>>>>>else>>>>>',this.Area);
+        //     console.log('>>>>>>providerName>>>>>',this.providerName);
+        this.fileUpload=true;
+    //    }
+        this.DocArray=[];
+    }
+    emojiTable(parentThis) {
+        try {
+            let svg1 = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" width="18px" height="18px" viewBox="0 0 510 510" style="enable-background:new 0 0 510 510;" xml:space="preserve"><path d="M344.25,229.5c20.4,0,38.25-17.85,38.25-38.25S364.65,153,344.25,153S306,170.85,306,191.25S323.85,229.5,344.25,229.5z     M165.75,229.5c20.4,0,38.25-17.85,38.25-38.25S186.15,153,165.75,153s-38.25,17.85-38.25,38.25S145.35,229.5,165.75,229.5z     M255,408c66.3,0,122.4-43.35,145.35-102h-290.7C132.6,364.65,188.7,408,255,408z M255,0C114.75,0,0,114.75,0,255    s114.75,255,255,255s255-114.75,255-255S395.25,0,255,0z M255,459c-112.2,0-204-91.8-204-204S142.8,51,255,51s204,91.8,204,204    S367.2,459,255,459z"></path></svg>';
+            let svg2 = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="18px" height="18px" viewBox="0 0 512 512" style="enable-background:new 0 0 512 512;" xml:space="preserve"><path d="M506.791,186.581c-17.89-55.053-77.234-85.287-132.283-67.403c-7.272,2.363-14.634,5.631-21.91,9.68    c1.603-8.169,2.436-16.182,2.436-23.828c0-58.447-40.387-104.981-97.982-104.981c-57.679,0-100.086,46.637-100.086,104.981    c0,7.645,0.833,15.658,2.436,23.828c-7.276-4.048-14.638-7.317-21.91-9.68C82.446,101.291,23.098,131.528,5.209,186.581    c-18.142,55.838,12.726,118.021,67.403,135.788c7.272,2.363,15.148,4.045,23.414,5.047c-6.099,5.668-11.481,11.661-15.976,17.846    C46.025,392.094,56.444,457.876,103.274,491.9c46.808,34.01,107.605,23.759,141.74-23.225c4.495-6.186,8.529-13.158,12.037-20.71    c3.507,7.553,7.542,14.524,12.037,20.71c34.181,47.048,92.928,57.162,139.636,23.225c46.831-34.025,57.25-99.807,23.225-146.638    c-4.493-6.186-9.878-12.178-15.976-17.847c8.264-1.001,16.145-2.685,23.417-5.046C494.066,304.603,524.933,242.42,506.791,186.581    z M257.052,30.044c39.394,0,67.987,31.536,67.987,74.986c0,19.556-7.653,43.667-20.471,64.497    c-1.551,2.521-2.268,5.33-2.222,8.099l-15.616,27.028c-4.67-2.021-9.78-3.588-14.881-4.627V138.53    c0-8.282-6.515-14.997-14.797-14.997c-8.282,0-14.997,6.715-14.997,14.997v61.498c-5.221,1.064-10.239,2.686-15.007,4.775    l-17.435-28.556c-0.175-2.314-0.888-4.618-2.182-6.72c-12.818-20.83-20.471-44.941-20.471-64.497    C186.961,62.281,217.093,30.044,257.052,30.044z M81.88,293.843c-38.539-12.523-61.037-58.314-48.145-97.993    c12.778-39.324,55.162-60.921,94.489-48.146c16.144,5.246,33.771,17.046,48.512,32.256l25.755,42.184    c-4.094,4.347-7.675,9.179-10.647,14.404l-58.527-19.016c-7.884-2.561-16.339,1.752-18.898,9.628    c-2.561,7.878,1.752,16.338,9.628,18.898l58.505,19.01c-0.678,6.02-0.632,11.422,0.037,17.164l-37.46,13.069    C122.678,300.014,99.332,299.513,81.88,293.843z M242.053,387.296c-1.939,24.232-9.884,48.032-21.303,63.749    c-24.406,33.59-66.469,40.839-99.845,16.589c-33.45-24.304-40.891-71.29-16.588-104.742    c19.857-27.333,54.348-39.752,56.964-41.457l30.712-10.715c2.766,4.816,6.037,9.306,9.764,13.375l-36.175,49.792    c-4.869,6.701-3.383,16.08,3.317,20.948c6.697,4.867,16.077,3.385,20.948-3.317l36.165-49.779    c5.074,2.317,10.44,4.102,16.04,5.243V387.296z M257.052,318.497c-24.808,0-44.992-20.183-44.992-44.992    s20.183-44.992,44.992-44.992c24.808,0,44.992,20.183,44.992,44.992S281.86,318.497,257.052,318.497z M391.094,467.634    c-34.467,25.043-74.131,15.904-97.741-16.589c-11.419-15.717-19.564-39.517-21.505-63.748v-40.314    c5.6-1.142,11.166-2.925,16.24-5.243l36.165,49.779c4.869,6.701,14.248,8.185,20.948,3.317c6.701-4.869,8.187-14.247,3.317-20.948    l-36.174-49.791c3.695-4.036,6.943-8.483,9.694-13.254l27.954,10.071c3.446,2.555,37.543,14.246,57.689,41.978    C431.987,396.344,424.545,443.33,391.094,467.634z M368.012,295.523l-36.516-13.156c0.699-5.9,0.725-11.338,0.054-17.3    l58.505-19.01c7.877-2.56,12.188-11.02,9.628-18.898s-11.021-12.189-18.898-9.628l-58.527,19.016    c-3.024-5.315-6.678-10.224-10.862-14.629l24.769-42.868c14.556-14.767,31.791-26.206,47.61-31.346    c39.321-12.775,81.71,8.821,94.489,48.144c12.892,39.68-9.606,85.471-48.145,97.994h0.001    C412.962,299.417,390.11,299.983,368.012,295.523z"></path></svg>';
+            let svg3 = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" width="18px" height="18px" viewBox="0 0 512 512" style="enable-background:new 0 0 512 512;" xml:space="preserve"><path d="M467.812,431.851l-36.629-61.056c-16.917-28.181-25.856-60.459-25.856-93.312V224c0-67.52-45.056-124.629-106.667-143.04    V42.667C298.66,19.136,279.524,0,255.993,0s-42.667,19.136-42.667,42.667V80.96C151.716,99.371,106.66,156.48,106.66,224v53.483    c0,32.853-8.939,65.109-25.835,93.291l-36.629,61.056c-1.984,3.307-2.027,7.403-0.128,10.752c1.899,3.349,5.419,5.419,9.259,5.419    H458.66c3.84,0,7.381-2.069,9.28-5.397C469.839,439.275,469.775,435.136,467.812,431.851z"></path><path d="M188.815,469.333C200.847,494.464,226.319,512,255.993,512s55.147-17.536,67.179-42.667H188.815z"></path></svg>';
+            let svg4 = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" width="18px" height="18px" viewBox="0 0 504.124 504.124" style="enable-background:new 0 0 504.124 504.124;" xml:space="preserve"><path d="M378.092,378.092v27.569c0,11.028,8.665,19.692,19.298,19.692h31.902v-47.262h-51.2V378.092z   M74.831,425.354h31.902c10.634,0,19.298-8.665,19.298-19.692v-27.569h-51.2C74.831,378.094,74.831,425.354,74.831,425.354z"/><path d="M413.538,378.092v64.197c0,14.572,11.815,26.388,25.994,26.388h14.572  c14.572,0,25.994-11.815,25.994-26.388v-72.074C480.098,370.215,413.538,378.092,413.538,378.092z M23.631,442.289  c0,14.572,11.815,26.388,25.994,26.388h14.572c14.572,0,25.994-11.815,25.994-26.388v-64.197l-66.56-7.877  C23.631,370.215,23.631,442.289,23.631,442.289z"/><path d="M250.486,35.446h1.182c133.514,0,165.809,57.108,165.809,165.415H86.646  C86.646,92.554,119.335,35.446,250.486,35.446z"/><path style="fill:#fff;" d="M250.88,55.138h1.182c117.366,0,145.723,50.412,145.723,145.723H106.338  C106.338,105.551,135.089,55.138,250.88,55.138z"/><path d="M252.062,334.77c80.345,0,145.723,14.966,145.723,33.477s-65.378,33.477-145.723,33.477  s-145.723-14.966-145.723-33.477C106.338,349.735,171.717,334.77,252.062,334.77z"/><path d="M88.222,212.677l164.234-23.631l163.446,23.631c48.837,0,88.222,39.778,88.222,89.403v19.298  c0,14.178-6.302,25.6-25.206,25.6H25.206C6.695,346.585,0,335.163,0,320.985v-19.298C0,252.455,39.385,212.677,88.222,212.677z"/><path d="M20.086,342.646h463.557c6.695,0,12.209,5.12,12.209,11.815c0,12.997-11.028,23.631-24.812,23.631  H32.689c-13.785,0-24.812-10.634-24.812-23.631C7.877,347.766,13.391,342.646,20.086,342.646L20.086,342.646z"/><path d="M422.597,200.468c0,0-45.686,18.117-69.711,98.068c0,0-13.391,44.111-44.111,44.111H195.348  c-30.72,0-44.111-44.111-44.111-44.111c-24.025-79.951-69.317-97.28-69.317-97.28c-15.754-6.302,0-15.754,0-15.754  c63.803-36.234,170.142-31.902,170.142-31.902s105.945-4.726,170.535,31.902C422.597,185.502,437.169,193.772,422.597,200.468z"/><path d="M168.566,293.022c1.969,6.302,12.209,29.932,25.206,29.932h34.658V173.292  c-59.865,0-98.855,11.028-122.092,21.268C124.455,208.345,151.631,237.095,168.566,293.022z M275.692,173.292v149.662h31.114  c13.391,0,23.237-23.631,25.206-29.932c16.542-55.138,43.323-84.283,61.44-98.462C371.003,184.32,333.194,173.686,275.692,173.292z"/><path d="M244.185,153.6h15.754v189.046h-15.754V153.6z"/><path style="fill:#fff;" d="M70.892,248.123c-19.692,0-35.446,15.754-35.446,35.446s15.754,35.446,35.446,35.446  s35.446-15.754,35.446-35.446C106.338,263.878,90.585,248.123,70.892,248.123z M433.231,248.123  c-19.692,0-35.446,15.754-35.446,35.446s15.754,35.446,35.446,35.446s35.446-15.754,35.446-35.446  C468.677,263.878,452.923,248.123,433.231,248.123z"/><path style="fill:#fff;" d="M70.892,271.754c-6.695,0-11.815,5.12-11.815,11.815s5.12,11.815,11.815,11.815  s11.815-5.12,11.815-11.815S77.194,271.754,70.892,271.754z M433.231,271.754c-6.695,0-11.815,5.12-11.815,11.815  s5.12,11.815,11.815,11.815s11.815-5.12,11.815-11.815S439.926,271.754,433.231,271.754z"/><path d="M426.535,192.985h-7.089c-7.877,0-14.178,5.908-14.178,13.785v6.695  c0,3.938,7.877,6.695,17.329,6.695c9.846,0,17.329-3.151,17.329-6.695v-6.695C440.714,199.286,434.412,192.985,426.535,192.985z   M83.889,192.985H76.8c-7.877,0-14.178,5.908-14.178,13.785v6.695c0,3.938,7.877,6.695,17.329,6.695s17.329-3.151,17.329-6.695  v-6.695C98.068,199.286,91.766,192.985,83.889,192.985z"/><path d="M117.366,122.486c19.692-9.846,76.8-35.052,133.908-35.052c57.502,0,115.397,25.206,135.089,35.052  c-16.542-44.505-55.138-67.348-134.302-67.348h-1.182C172.898,55.138,134.302,77.982,117.366,122.486z"/><path style="fill:#fff;" d="M433.231,256c15.36,0,27.569,12.209,27.569,27.569c0,15.36-12.209,27.569-27.569,27.569  c-15.36,0-27.569-12.209-27.569-27.569C405.662,268.21,417.871,256,433.231,256 M70.892,256c15.36,0,27.569,12.209,27.569,27.569  c0,15.36-12.209,27.569-27.569,27.569s-27.569-12.209-27.569-27.569C43.323,268.21,55.532,256,70.892,256 M433.231,248.123  c-19.692,0-35.446,15.754-35.446,35.446s15.754,35.446,35.446,35.446s35.446-15.754,35.446-35.446  C468.677,263.878,452.923,248.123,433.231,248.123z M70.892,248.123c-19.692,0-35.446,15.754-35.446,35.446  s15.754,35.446,35.446,35.446s35.446-15.754,35.446-35.446C106.338,263.878,90.585,248.123,70.892,248.123z"/></svg>';
+            var tabContent1 = emojiTable1();
+            var tabContent2 = emojiTable2();
+            var tabContent3 = emojiTable3();
+            var tabContent4 = emojiTable4();
+            var emojiContainer = document.createElement('div');
+            emojiContainer.className = 'tabs';
+            var emojiContainerbody = '<ul class="tab-links">';
+            emojiContainerbody += '<li class="active"><a href="#tab1" id="svg_content1">'+svg1+'</a></li>';
+            emojiContainerbody += '<li><a href="#tab2" id="svg_content2">'+svg2+'</a></li>';
+            emojiContainerbody += '<li><a href="#tab3" id="svg_content3">'+svg3+'</a></li>';
+            emojiContainerbody += '<li><a href="#tab4" id="svg_content4">'+svg4+'</a></li></ul>';
+
+            emojiContainerbody += '<div class="tab-content"><div id="tab1" class="tab active"></div>';
+            emojiContainerbody += '<div id="tab2" class="tab"></div>';
+            emojiContainerbody += '<div id="tab3" class="tab"></div>';
+            emojiContainerbody += '<div id="tab4" class="tab"></div></div>';
+
+            emojiContainer.innerHTML = emojiContainerbody;
+            parentThis.template.querySelector('.allEmojiContainer').appendChild(emojiContainer);
+            parentThis.template.querySelector('#tab1').innerHTML = tabContent1;
+            parentThis.template.querySelector('#tab2').innerHTML = tabContent2;
+            parentThis.template.querySelector('#tab3').innerHTML = tabContent3;
+            parentThis.template.querySelector('#tab4').innerHTML = tabContent4;
+            this.template.querySelector('#svg_content1').addEventListener('click',function(){
+                parentThis.removeActiveClass(parentThis);
+                parentThis.template.querySelector('#svg_content1').parentNode.classList.add('active');
+                parentThis.template.querySelector('#tab1').classList.add('active');
+                
+            })
+            this.template.querySelector('#svg_content2').addEventListener('click',function(){
+                parentThis.removeActiveClass(parentThis);
+                parentThis.template.querySelector('#svg_content2').parentNode.classList.add('active');
+                parentThis.template.querySelector('#tab2').classList.add('active');
+            })
+            this.template.querySelector('#svg_content3').addEventListener('click',function(){
+                parentThis.removeActiveClass(parentThis);
+                parentThis.template.querySelector('#svg_content3').parentNode.classList.add('active');
+                parentThis.template.querySelector('#tab3').classList.add('active');
+            })
+            this.template.querySelector('#svg_content4').addEventListener('click',function(){
+                parentThis.removeActiveClass(parentThis);
+                parentThis.template.querySelector('#svg_content4').parentNode.classList.add('active');
+                parentThis.template.querySelector('#tab4').classList.add('active');
+            })
+            this.template.querySelector('.allEmojiContainer').addEventListener('click',function(event){
+                event.stopPropagation();
+            })
+            let ele = parentThis.template.querySelectorAll(".EmojiIcon");
+            $(ele).click(function(){
+                let countChar = parentThis.template.querySelector('.utilityTextArea').value.length;
+                let limit = parentThis.charlimit;
+                if(countChar+2 <= limit)
+                {
+                    if(!parentThis.emojiDisabled){
+                        let previousTextVal = parentThis.template.querySelector('.utilityTextArea');
+                        let  start = previousTextVal.selectionStart;
+                        let end = previousTextVal.selectionEnd;
+                        let text = previousTextVal.value;
+                        let before = text.substring(0, start);
+                        let after  = text.substring(end, text.length);
+                        previousTextVal.value = (before + $(this).attr("alt")+ after);
+                        previousTextVal.selectionStart = previousTextVal.selectionEnd = start + $(this).attr("alt").length;
+                        previousTextVal.focus();
+                        parentThis.handleKeyUp();
+                    }
+                }
+                
+            });
+        } catch(error) {
+            console.log('=======allEmjContainer ',error);
+        }
+    }
+
+    removeActiveClass(parentThis){  //Make Emoji Tabs Active/Inactive When Switching Between Them
+        try{
+            parentThis.template.querySelector('.tab-content .tab.active').classList.remove('active');
+            parentThis.template.querySelector('.tab-links li.active').classList.remove('active');
+        }catch(error){
+            console.log('-------->>>>>>>>>>catch emoji',error);}
+    }
+    emojiIconClicked(event){
+        try{
+            if(!this.emojiDisabled){
+                var allEmjContainer = this.template.querySelector('.allEmojiContainer');
+                if (window.getComputedStyle(allEmjContainer).display === "none") {
+                    allEmjContainer.style.display = 'block';
+                } else{
+                    allEmjContainer.style.display = 'none';
+                }
+            }
+        } catch(error) {
+            console.log('>>>>>>Line 854>>>>>',error);
+        }
+    }
+    handleNumberChange(event){
+        try{
+            this.phoneApiVal = event.target.value;
+        } catch(error) {
+            console.log('>>>>>>Line 861>>>>>',error);
+        }
+    }
+    handleSendButton(event) {
+        try{
+           let config = null;
+            for(let i = 0; i< this.senderNumberArray.length;i++){
+                if(this.senderNumberArray[i].key == this.senderNumber){
+                    config = this.senderNumberArray[i].key;
+                    break;
+                }
+            }
+            if(this.messageText === '' && this.DocArray.length < 1){
+                this.errorHeader = 'Error';
+                this.errorMsg = 'Please Enter a Message Text or Choose a File';
+                this.isError = true;
+                return;
+            }
+            if(this.content.length === 0 &&  (this.phoneApiVal === '' || this.phoneApiVal === undefined )){
+                this.errorMsg = 'Please Select Phone Api';
+                this.errorHeader = 'Error';
+                this.isError = true;
+                return;
+            }
+            if(config === undefined || config === null){
+                this.errorHeader = 'Error';
+                this.errorMsg = 'Please Select Sender Number';
+                this.isError = true;
+                return;
+            }
+            if(this.DocArray.length === 0) {
+                if(this.content.length>0)
+                   sendMessages({config : config, messageText : this.messageText, ToNumbers: this.content})
+                    .then(result =>{
+                        if(result!=null){
+                            this.errorHeader = 'Error';
+                            this.errorMsg = 'Message Body Contains Cannabis Keywords';
+                           this.isError = true;
+                           this.handleCancel(event);
+                        }else{
+                        this.errorHeader = 'Success';
+                         this.errorMsg = 'Message Sent Successfully!';
+                         this.isError = true;
+                        this.handleCancel(event);
+                        }
+                    })
+                    .catch(error =>{
+                        console.log('========sendmessages catch',error);
+                    });
+                else
+                    sendMessage({config : config, messageText : this.messageText, recordId : this.recId, ToNumber : this.phoneApiVal,MapdocIdToUrl : null, fieldsVisible : this.fieldsVisible,selectedTemplate :this.selectedTemplate})//added selectedTemplate :this.selectedTemplate by Suresh 13-6-21
+                    .then(result =>{
+                     if(result === 'Success') {
+                        this.errorHeader = 'Success';
+                        this.errorMsg = 'Message Sent Successfully!';
+                        this.isError = true;
+                        this.handleCancel(event);
+                    }
+                    if(result !== null && result.includes('This record has opted out for SMS.')) {
+                        this.errorHeader = 'Error';
+                        this.errorMsg = result;
+                        this.isError = true;
+                    }
+                    if(result !== null && result !== undefined && result !== 'Success' ){
+                        this.errorHeader = 'Error';
+                        this.errorMsg = result;
+                        this.isError = true;
+                    }
+                    if(result !== null && result.includes("Error:")){//Added by Jagdish for message Limiting.
+                        this.errorHeader = 'Error';
+                        this.errorMsg = result;
+                        this.isError = true;
+                    }
+                    //Added by Himanshi Verma
+                    if (result === null) {
+                        this.errorHeader = 'Error';
+                        this.errorMsg = 'Please update Number Information from SMS Setup page';
+                        this.isError = true;
+                    }
+                    //Ended by Himanshi Verma
+                     this.handleCancel(event);
+
+                    })
+                    .catch(error =>{
+                        console.log('========sendmessage catch',error);
+                    });
+            } 
+            if(this.DocArray.length > 0 && this.DocArray.length <= 5) {
+                 createMedia({getDoc:this.DocArray,recordId:this.recId})            
+                .then(resultMedia=>{
+                    if(resultMedia !== undefined) {
+                        if(this.content.length>0){
+                            sendMessages({config : config, messageText : this.messageText, ToNumbers: this.content,MapdocIdToUrl:resultMedia})
+                            .then(result =>{
+                                this.errorHeader = 'Success';
+                                this.errorMsg = 'Messages Sent Successfully!';
+                                this.isError = true;
+                                this.handleCancel(event);
+                            })
+                            .catch(error =>{
+                                console.log('========sendmessages catch',error);
+                            });
+                        }
+                        else
+                            sendMessage({config : config, messageText : this.messageText, recordId : this.recId, ToNumber : this.phoneApiVal,MapdocIdToUrl:resultMedia})
+                        .then(result =>{
+                            if(result != null && result ==='Success') {
+                                this.errorHeader = 'Success';
+                                this.errorMsg = 'Message Sent Successfully!';
+                                this.isError = true;
+                                this.handleCancel(event);
+                            }
+                             else{
+                                this.errorHeader = 'Error';
+                                this.errorMsg = result;
+                                this.isError = true;
+                            }
+                        })
+                        .catch(error =>{
+                            console.log('========sendmessage mms catch',error);
+                        });
+                    }
+                }) .catch(error=>{
+                    console.log('=======resultmedia error',error);
+                })
+            }
+        } catch(error) {
+            console.log('>>>>>>Line 985>>>>>',error);
+        }
+    }
+    handleCancel(event){
+        try{
+            this.whatsAppMediaName='';
+            //this.showClearButton=false;
+            this.template.querySelector('.searchBar').value = '';
+            if(this.template.querySelector('.csvRemove') !== null && this.template.querySelector('.csvRemove') !== undefined){
+                this.template.querySelector('.csvRemove').click();
+            }
+            this.handleChange(event);
+        } catch(error) {
+            console.log('>>>>>>Line 993>>>>>',error);
+        }
+    }
+   
+
+    closeSendToPopup(){
+        this.showSendToMessage = false;
+        let ele = this.template.querySelector('.sendToPupup');
+        window.$(ele).fadeOut();
+    }
+    // getchannel() {
+    //      if (this.senderNumber != null && this.senderNumber != "") {
+    //              getChannelList({ senderPhone: this.senderNumber[this.Spaceprefix + 'Number__c'], toNumber: this.phoneApiVal, isStickyChannelRequired: false })
+    //                 .then(result => {
+    //                     if (result) {
+    //                          let listData = JSON.parse(result.lstMessageType);
+    //                          this.channelList2 = [];
+    //                         listData.forEach(dataList => {
+    //                             if (dataList.value === "WhatsApp" || dataList.value === "Text Message") {
+    //                                 if(dataList.disabled == false){
+    //                                 this.channelVal = dataList.value;
+    //                                 }
+    //                                 if (this.channelList2.length < 2) {
+    //                                     this.channelList2.push({ value: dataList.value, key: dataList.label,disable: dataList.disabled })
+    //                                  }
+    //                             }
+    //                         })
+    //                         setTimeout(()=>{
+    //                            this.channelVal= this.template.querySelector('.channelSelect').value; 
+    //                            if ( this.channelVal === "WhatsApp" && this.whatsAppMediaName === '') {
+    //                             this.fileUpload=true;
+    //                            }
+    //                         },5000)
+    //                     }
+                    
+    //                     }).catch(error => {
+    //                         console.log('======getchannel', error);
+    //                     })
+    //             }
+    //         }
+                     
+            async getchannelJS() {
+                try {
+                    // this.providerName = this.senderNumber[this.Spaceprefix+'Provider__c'];
+                    // if(this.providerName.includes('VALUEFIRST') || this.providerName.includes('360_VF13') ){
+                    //     this.fileUpload=true;
+                    // }
+                    if (this.senderNumber != null && this.senderNumber != "") {
+                        await getChannelList({ senderPhone: this.senderNumber[this.Spaceprefix + 'Number__c'], toNumber: this.phoneApiVal, isStickyChannelRequired: false })
+                            .then(result => {
+                                if (result && result.lstMessageType) {
+                                    this.textareaEnabled=result.textareaEnabled ;
+                                   let listData = JSON.parse(result.lstMessageType);
+                                    this.channelList = [];
+                                    listData.forEach(dataList => {
+                                        // console.log('dataList.value',dataList.value);
+                                        //   if (result.supportedActionTypes === "SMS;MMS") {
+                                        //     console.log('supportedActionTypes');
+                                        //       if (dataList.value === "Text Message") {
+                                        //         if(dataList.disabled == false){
+                                        //           this.channelVal = dataList.value;
+                                        //         }
+                                        //         this.Area = false;
+                                        //         if (this.channelList.length < 1) {
+                                        //             this.channelList.push({ value: dataList.value, key: dataList.label ,disable: dataList.disabled})
+                                        //         }
+                                        //     }
+                                        // }
+                                        // else {
+                                            if (dataList.value === "WhatsApp" || dataList.value === "Text Message") {
+                                                if(dataList.disabled == false){
+                                                    this.channelVal = dataList.value;
+                                                }
+                                                if (this.channelList.length < 2) {
+                                                    this.channelList.push({ value: dataList.value, key: dataList.label ,disable : dataList.disabled})
+                                                }
+                                            }
+        
+                                        // }
+                                        
+                                    });
+                                    // if (result.supportedActionTypes==='SMS;MMS;WhatsApp' && this.isWhatsAppCheck!=true) {
+                                    //     this.Area = false;
+                                    // }
+                                    this.channelList.push({ value: 'Voicemail', key: 'Voicemail' })
+                                    this.getTemplateJS('');
+                                    // this.pickSenderNumber();
+                                     }
+                         }).catch(error => {
+                                console.log('======getchannel2', error);
+                            })
+                    }
+                    if (this.textareaEnabled === true) {
+                        this.boolTextareaEnabled = true;
+                        if(this.whatsAppMediaName === ''){
+                            this.fileUpload=true;
+                        }
+                     }
+                    else{
+                        this.boolTextareaEnabled=false;
+                        }
+                    if (this.textareaEnabled != true && this.template.querySelector('.channelSelect').value === 'WhatsApp') {
+                        this.Area = true;
+                        this.isWhatsAppCheck=true;
+                        if(this.whatsAppMediaName === ''){
+                            this.fileUpload=true;
+                        }
+                       }
+                   } catch (error) {
+                    console.log('======getchannel3 catch', error);
+                }
+            }
+    handleSendButton() {
+        this.reader = false;
+         let config = null;
+        for (let i = 0; i < this.senderNumberArray.length; i++) {
+            if (this.senderNumberArray[i].key == this.senderNumber) {
+                config = this.senderNumberArray[i].key;
+                break;
+            }
+        }
+        if (this.messageText === '' && this.DocArray.length < 1) {
+            this.errorHeader = 'Error';
+            this.errorMsg = 'Please Enter a Message Text or Choose a File';
+            this.isError = true;
+            return;
+        }
+         if (this.content.length === 0 && (this.phoneApiVal === '' || this.phoneApiVal === undefined)) {
+            this.errorMsg = 'Please Select Phone Api';
+            this.errorHeader = 'Error';
+            this.isError = true;
+            return;
+        }
+        if (config === undefined || config === null) {
+            this.errorHeader = 'Error';
+            this.errorMsg = 'Please Select Sender Number';
+            this.isError = true;
+            return;
+        }
+        if (this.DocArray.length === 0 || this.DocArray.length === 1 && this.isCSV) {
+            if (this.content.length > 2)
+                  createMedia({ getDoc: this.DocArray, recordId: this.recId })
+                .then(resultMedia => {
+                 sendMessages({ config: config, messageText: this.messageText, ToNumbers: this.content,MapdocIdToUrl:resultMedia, channel: this.channelVal})
+                    .then(result => {
+                        this.errorHeader = 'Success';
+                        this.errorMsg = 'Message Sent Successfully!';
+                        this.isError = true;
+                        this.handleCancel(event);
+                      })
+                    .catch(error => {
+                        console.log('========sendmessages catch', error);
+                    });
+                
+            }).catch(error => {
+                console.log('=======resultmedia error', error);
+            })
+            else
+                sendMessage({ config: config, messageText: this.messageText, recordId: this.recId, ToNumber: this.phoneApiVal, MapdocIdToUrl: null, fieldsVisible: this.fieldsVisible,selectedTemplate :this.selectedTemplate, channel: this.channelVal  })
+                    .then(result => {
+                        if (result === 'Success') {
+                            this.errorHeader = 'Success';
+                            this.errorMsg = 'Message Sent Successfully!';
+                            this.isError = true;
+                        }
+                        if (result !== null && result.includes('This record has opted out for SMS.')) {
+                            this.errorHeader = 'Error';
+                            this.errorMsg = result;
+                            this.isError = true;
+                        }
+                        if (result !== null && result !== undefined && result !== 'Success') {
+                            this.errorHeader = 'Error';
+                            this.errorMsg = result;
+                            this.isError = true;
+                        }
+                        //Added by Himanshi Verma
+                        if (result === null) {
+                            this.errorHeader = 'Error';
+                            this.errorMsg = 'Please update Number Information from SMS Setup page';
+                            this.isError = true;
+                        }
+                        this.handleCancel(event);
+                        })
+                    .catch(error => {
+                        console.log('========sendmessage  In catch', error);
+                    });
+        }
+        if (this.DocArray.length > 0 && this.DocArray.length <= 5 && this.recordingId !== undefined) {
+           this.channelVal = 'Voicemail';
+            if(this.template.querySelector('.channelSelect') != undefined && this.template.querySelector('.channelSelect') != null && this.template.querySelector('.channelSelect') != '')
+                this.template.querySelector('.channelSelect').value = "VoiceMail";
+            createMedia({ getDoc: this.DocArray, recordId: this.recId })
+                .then(resultMedia => {
+                    if (resultMedia !== undefined) {
+                        if (this.content.length > 0) {
+                            sendVoiceMail({ config: config, recID: this.recordingId, messageText: this.messageText, ToNumbers: this.content, MapdocIdToUrl: resultMedia})//, channel: this.channelVal })
+                                .then(result => {
+                                    this.errorHeader = 'Success';
+                                    this.errorMsg = 'Messages Sent Successfully!';
+                                    this.isError = true;
+                                    this.handleCancel(event);
+                                  })
+                                .catch(error => {
+                                    console.log('========sendmessages catch', error);
+                                });
+                        }
+                        else {
+                            sendVoiceMail({ config: config, recID: this.recordingId, messageText: this.messageText, recordId: this.recId, ToNumber: this.phoneApiVal, MapdocIdToUrl: resultMedia, channel: this.channelVal })
+                                .then(result => {
+                                    if (result != null && result === 'Success') {
+                                        this.errorHeader = 'Success';
+                                        this.errorMsg = 'Message Sent Successfully!';//this is the result in case of upload recording
+                                        this.isError = true;
+                                    }
+                                    this.handleCancel(event);
+                                    })
+                                .catch(error => {
+                                    console.log('========sendmessage mms catch', error);
+                                });
+                        }
+                    }
+                    else {
+                        console.log("ssssssss")
+                    }
+                  }).catch(error => {
+                    console.log('=======resultmedia error', error);
+                })
+        }
+        else if (this.DocArray.length > 0 && this.DocArray.length <= 5 && this.isMMS==false) {
+            this.channelVal = 'Voicemail';
+            if(this.template.querySelector('.channelSelect') != undefined && this.template.querySelector('.channelSelect') != null && this.template.querySelector('.channelSelect') != '')
+                this.template.querySelector('.channelSelect').value = "VoiceMail";
+            createMedia({ getDoc: this.DocArray, recordId: this.recId })
+                .then(resultMedia => {
+                    if (resultMedia) {
+                       var conts = resultMedia;
+                        var RecoId;
+                        for (var key in conts) {
+                            RecoId = key;
+                        }
+                    }
+                    getVoiceDrop({ docID: RecoId })
+                        .then(resultvoice => {
+                            if (resultMedia !== undefined) {
+                                if (this.content.length > 0) {
+                                    sendVoiceMail({ config: config, recID: resultvoice, messageText: this.messageText, ToNumbers: this.content, MapdocIdToUrl: resultMedia, channel: this.channelVal })
+                                        .then(result => {
+                                            this.errorHeader = 'Success';
+                                            this.errorMsg = 'Messages Sent Successfully!';
+                                            this.isError = true;
+                                            this.handleCancel(event);
+                                             })
+                                        .catch(error => {
+                                            console.log('========sendmessages catch', error);
+                                        });
+                                }
+                                else {
+                                     sendVoiceMail({ config: config, recID: resultvoice, messageText: this.messageText, recordId: this.recId, ToNumber: this.phoneApiVal, MapdocIdToUrl: resultMedia, channel: this.channelVal })
+                                        .then(result => {
+                                            if (result != null && result === 'Success') {
+                                                this.errorHeader = 'Success';
+                                                this.errorMsg = 'Message Sent Successfully!';//this is the result in case of upload recording
+                                                this.isError = true;
+                                            }
+                                            this.handleCancel(event);
+                                        })
+                                        .catch(error => {
+                                            console.log('========sendmessage mms catch', error);
+                                        });
+                                }
+                            }
+                            else {
+                                console.log("ssssssss")
+                            }
+                        })
+                        .catch(error => {
+                            console.log('Errorured:- 2250' + error.body.message);
+                        });
+                       
+                }).catch(error => {
+                    console.log('=======resultmedia error', error);
+                })
+        }
+        
+        else if(this.DocArray.length > 0 && this.DocArray.length <= 1 && this.isMMS==true  && !this.isCSV) {
+             createMedia({getDoc:this.DocArray,recordId:this.recId})            
+           .then(resultMedia=>{
+            if(resultMedia !== undefined) {
+                   sendMessage({config : config, messageText : this.messageText, recordId : this.recId, ToNumber : this.phoneApiVal,MapdocIdToUrl:resultMedia, fieldsVisible: this.fieldsVisible,selectedTemplate :this.selectedTemplate, channel: this.channelVal})
+                   .then(result =>{
+                    if(result != null && result ==='Success') {
+                           this.errorHeader = 'Success';
+                           this.errorMsg = 'Message Sent Successfully!';
+                           this.isError = true;
+                           this.whatsAppMediaName='';
+                           this.handleCancel(event);
+                       }
+                        else{
+                           this.errorHeader = 'Error';
+                           this.errorMsg = result;
+                           this.isError = true;
+                       }
+                   })
+                   .catch(error =>{
+                       console.log('========sendmessage mms catch',error);
+                   });
+               }
+           }) .catch(error=>{
+               console.log('=======resultmedia error',error);
+           })
+       }
+    }
+    HandleVoiceClick(event){
+        let selectedData = event.target.getAttribute('data-value');
+        if (selectedData == 'Select Template') {
+            this.folderContainer_1 = false;
+            this.folderContainer_2 = false;
+            this.templateContainer = true;
+            this.isSpinner = true;
+            VoiceTemplateList()
+                .then(result => {
+                    this.template.querySelector(".channelSelect").value = '';
+                    this.lstMapIdToTemplate = result;
+                    this.isSpinner = false;
+                      })
+                .catch(error => {
+                    this.isSpinner = false;
+                    console.log('Errorured:- 1071' + error.body.message);
+                });
+            // Code to add select folder starts here
+
+        }
+        else if (selectedData == 'Select Folder') {
+            this.templateContainer = false;
+            this.folderContainer_2 = false;
+            this.folderContainer_1 = true;
+            this.isSpinner = true
+           }
+        else if (selectedData == 'Upload Recording') {
+            this.templateContainer = false;
+            }
+        else if (selectedData == 'Start Recording') {
+            this.templateContainer = false;
+            this.folderContainer_1 = false;
+            this.folderContainer_2 = false;
+            this.isAudio = false;
+            this.audioURL = '';
+            this.dropdownData = {
+                selectedVoiceDropVal: '',
+                templateContainerVal: '',
+                folderContainer_1Val: '',
+                folderContainer_2Val: ''
+           }
+            window.open(this.VoiceURL);
+        }
+    }
+   FolderVoiceChange(event) {
+        this.FolderVoiceChange = event.target.value;
+        this.recordingId = event.target.value;
+        this.channelVal = 'Voicemail';
+        this.whatsAppMediaName='';
+        this.fileUpload=false;
+        if(this.template.querySelector('.channelSelect') != undefined && this.template.querySelector('.channelSelect') != null && this.template.querySelector('.channelSelect') != '')
+            this.template.querySelector('.channelSelect').value = "VoiceMail";
+        this.emojiDisabled=true;
+        this.isVoiceDrop = true;
+        this.Area = true;
+        let allOptions = event.target.querySelectorAll('option');
+        this.isSpinner = true;
+        allOptions.forEach((op) => {
+            if (this.recordingId == op.value) {
+                this.recordingName = op.innerHTML;
+            }
+        })
+        fetchRecordingData({ recordingId: this.recordingId })
+            .then(result => {
+                var data = 'data:audio/ogg;base64,' + result.Name;
+                this.DocArray.push(this.recordingName + data);
+                function convertDataURIToBinary(dataURI) {
+                    var BASE64_MARKER = ";base64,";
+                    var base64Index =
+                        dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+                    var base64 = dataURI.substring(base64Index);
+                    var raw = window.atob(base64);
+                    var rawLength = raw.length;
+                    var array = new Uint8Array(new ArrayBuffer(rawLength));
+                    for (var i = 0; i < rawLength; i++) {
+                        array[i] = raw.charCodeAt(i);
+                    }
+                    return array;
+                }
+                 var binary = convertDataURIToBinary(data);
+                var blob = new Blob([binary], {
+                    type: 'audio/x-wav'
+                });
+                var blobUrl = window.URL.createObjectURL(blob);
+                this.isAudio = true;
+                this.audioURL = blobUrl;
+                this.reader = false;
+                this.templateContainer = false;
+                this.dropdownData = {
+                    selectedVoiceDropVal: 'Select Folder',
+                    templateContainerVal: '',
+                    folderContainer_1Val: this.voiceFolderId,
+                    folderContainer_2Val: this.recordingId
+
+                }
+                this.isSpinner = false;
+                })
+            .catch(error => {
+                this.isSpinner = false;
+                console.log('Errorured:- 1209');
+            });
+
+    }
+    TemplateChange(event) {
+        this.recordingId = event.target.value;
+        this.whatsAppMediaName='';
+        this.fileUpload=false;
+        this.template.querySelector('.channelSelect').value= 'Voicemail';
+        let allOptions = event.target.querySelectorAll('option');
+        this.channelVal = "VoiceMail";
+        if(this.template.querySelector('.channelSelect') != undefined && this.template.querySelector('.channelSelect') != null && this.template.querySelector('.channelSelect') != '')
+            this.template.querySelector('.channelSelect').value = "VoiceMail";
+        this.isVoiceDrop = true;
+        this.emojiDisabled=true;
+        this.Area = true;
+        this.isSpinner = true;
+        allOptions.forEach((op) => {
+            if (this.recordingId == op.value) {
+                this.recordingName = op.innerHTML;
+            }
+        })
+       fetchRecordingData({ recordingId: this.recordingId })
+            .then(result => {
+                var data = 'data:audio/ogg;base64,' + result.Name;
+                this.DocArray.push(this.recordingName + data);
+               function convertDataURIToBinary(dataURI) {
+                    var BASE64_MARKER = ";base64,";
+                    var base64Index =
+                        dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+                    var base64 = dataURI.substring(base64Index);
+                    var raw = window.atob(base64);
+                    var rawLength = raw.length;
+                    var array = new Uint8Array(new ArrayBuffer(rawLength));
+                    for (var i = 0; i < rawLength; i++) {
+                        array[i] = raw.charCodeAt(i);
+                    }
+                    return array;
+                }
+                var binary = convertDataURIToBinary(data);
+                var blob = new Blob([binary], {
+                    type: 'audio/x-wav'
+                });
+                var blobUrl = window.URL.createObjectURL(blob);
+                this.isAudio = true;
+                this.audioURL = blobUrl;
+                this.reader = false;
+                this.templateContainer = false;
+                this.dropdownData = {
+                    selectedVoiceDropVal: 'Select Template',
+                    templateContainerVal: this.recordingId,
+                    folderContainer_1Val: '',
+                    folderContainer_2Val: ''
+                }
+                this.isSpinner = false;
+             })
+            .catch(error => {
+                this.isSpinner = false;
+                console.log('Errorured:- 1284');
+            });
+    }
+    closeAudio() {
+        //this.Area = false;
+        this.emojiDisabled=false;
+        this.isVoiceDrop = false;
+        // if (this.Area===true) {
+        //     this.fileUpload=false;
+        // }
+        // else {
+            this.fileUpload=false;
+       // }
+     this.template.querySelector('.channelSelect').value = "Text Message";
+           
+    //    if(this.template.querySelector('.channelSelect') != undefined && this.template.querySelector('.channelSelect') != null && this.template.querySelector('.channelSelect') != '')
+    //         this.template.querySelector('.channelSelect').value = "VoiceMail";
+        
+       this.Area=false;
+        this.audioURL = '';
+        this.isAudio = false;
+        this.reader = false;
+        this.templateContainer = false;
+        this.folderContainer_1 = false;
+        this.folderContainer_2 = false;
+        this.dropdownData = {
+            selectedVoiceDropVal: '',
+            templateContainerVal: '',
+            folderContainer_1Val: '',
+            folderContainer_2Val: ''
+         }
+    }
+    createVoiceRecord(event) {
+        this.channelVal = 'Voicemail';
+        this.whatsAppMediaName='';
+        this.fileUpload=false;
+        if(this.template.querySelector('.channelSelect') != undefined && this.template.querySelector('.channelSelect') != null && this.template.querySelector('.channelSelect') != '')
+            this.template.querySelector('.channelSelect').value = "VoiceMail";
+        this.isVoiceDrop = true;
+        this.emojiDisabled=true;
+        this.uploadedFiles = event.target.files[0];
+        this.Area = true;
+        if (this.uploadedFiles.size > this.MAX_VOICEFILE_SIZE) {
+            //alert("File Size Can not exceed" + this.MAX_VOICEFILE_SIZE);
+            this.errorHeader = 'Error';
+            this.errorMsg = 'File Size Can not exceed';
+           this.isError = true;
+        }
+        else {
+            let reader = new FileReader();
+            reader.onload = ((evt) => {
+                let blobData = evt.target.result;
+                var data = reader.result;
+                function convertDataURIToBinary(dataURI) {
+                    var BASE64_MARKER = ";base64,";
+                    var base64Index =
+                        dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+                    var base64 = dataURI.substring(base64Index);
+                    var raw = window.atob(base64);
+                    var rawLength = raw.length;
+                    var array = new Uint8Array(new ArrayBuffer(rawLength));
+                    for (var i = 0; i < rawLength; i++) {
+                        array[i] = raw.charCodeAt(i);
+                    }
+                    return array;
+                }
+
+                var binary = convertDataURIToBinary(data);
+                var blob = new Blob([binary], {
+                    type: 'audio/x-wav'
+                });
+                var blobUrl = window.URL.createObjectURL(blob);
+                this.DocArray.push(this.uploadedFiles.name + blobData);
+                 this.isAudio = true;
+                this.audioURL = blobUrl;
+                this.reader = false;
+                this.templateContainer = false;
+                this.dropdownData = {
+                    selectedVoiceDropVal: 'Upload Recording',
+                    templateContainerVal: '',
+                    folderContainer_1Val: '',
+                    folderContainer_2Val: ''
+                }
+            });
+            reader.readAsDataURL(this.uploadedFiles);
+        }
+    }
+    onVoiceIconClick() {
+        this.VoiceURL = '/lightning/n/tdc_tsw__Voice_Templates';//this line is for testing purpose only to be removed when voice_template object is there
+        if (this.reader) {
+            this.reader = false;
+            this.template.querySelectorAll(".slds-dropdown__list a").forEach((ele) => {
+                ele.classList.remove('active')
+            });
+            this.template.querySelector(".SelectedTemplateDropdown").classList.add('slds-hide');
+          }
+        else {
+            this.reader = true;
+            if (this.isAudio) {
+                 setTimeout(() => {
+                    let voiceDropVal = this.template.querySelector(".voiceDropList");
+                    let allOptionRight = voiceDropVal.querySelectorAll('option');
+                    allOptionRight.forEach((op) => {
+                        if (op.value == this.dropdownData.selectedVoiceDropVal) {
+                            window.$(op).attr('selected', 'selected');
+                        }
+                    })
+                }, 500);
+                if (this.dropdownData.templateContainerVal != '') {
+                    this.templateContainer = true;
+                    setTimeout(() => {
+                        let selectLeft = this.template.querySelector(".channelSelect");
+                        let allOptionLeft = selectLeft.querySelectorAll('option');
+                        allOptionLeft.forEach((op) => {
+                            if (op.value == this.dropdownData.templateContainerVal) {
+                                window.$(op).attr('selected', 'selected');
+                            }
+                        })
+                    }, 500);
+                }
+                else {
+                    this.templateContainer = false;
+                }
+                if (this.dropdownData.folderContainer_1Val != '') {
+                    this.folderContainer_1 = true;
+                    setTimeout(() => {
+                        let select = this.template.querySelector(".voiceFolderSelect");
+                        let allOption = select.querySelectorAll('option');
+                        allOption.forEach((op) => {
+                            if (op.value == this.dropdownData.folderContainer_1Val) {
+                                window.$(op).attr('selected', 'selected');
+                            }
+                        })
+                     }, 500);
+                }
+                else {
+                    this.folderContainer_1 = false;
+                }
+                if (this.dropdownData.folderContainer_1Val != '') {
+                    this.folderContainer_2 = true;
+                    setTimeout(() => {
+                        let select = this.template.querySelector(".folderVoiveList");
+                        let allOption = select.querySelectorAll('option');
+                        allOption.forEach((op) => {
+                            if (op.value == this.dropdownData.folderContainer_2Val) {
+                                window.$(op).attr('selected', 'selected');
+                            }
+                        })
+                    }, 500);
+                }
+                else {
+                    this.folderContainer_2 = false;
+                }
+              }
+            else {
+                this.templateContainer = false;
+                this.folderContainer_1 = false;
+                this.folderContainer_2 = false;
+            }
+            this.URLdata = '/lightning/n/tdc_tsw__Voice_Templates';
+            var parentPageUrl = document.location.href;
+             if (parentPageUrl.indexOf(".lightning.force.com") > 0) {
+                this.URLdata = '/lightning/n/tdc_tsw__Voice_Templates';
+                 this.VoiceURL = this.URLdata;
+            } else {
+                getTabId()
+                    .then(result => {
+                        if (result != '') {
+                            this.URLdata = '/apex/Voice_Recording?sfdc.tabName=' + result;
+                             this.VoiceURL = this.URLdata;
+                          }
+                    })
+                    .catch(error => {
+                        console.log('Errorured:-1548 ' + error.body.message);
+                    });
+            }
+         }
+        }
+    handleChannelChange(event) {
+        this.reader = false;
+          
+        this.template.querySelector('.utilityTextArea').value='';
+         if (event.target.value === "Text Message" ||  event.target.value === "VoiceMail") {
+            this.Area = false;
+            this.fileUpload=false;
+            this.whatsAppMediaName='';
+        }
+        this.channelVal = this.template.querySelector('.channelSelect').value;
+        if (this.template.querySelector('.channelSelect').value === "Text Message" || this.template.querySelector('.channelSelect').value ===  "VoiceMail" ) {
+            this.Area = false;
+            this.fileUpload=false;
+            this.whatsAppMediaName='';
+        }
+        else if (this.template.querySelector('.channelSelect').value === "WhatsApp" && this.boolTextareaEnabled === true) {
+            this.Area = false;
+            if(!this.whatsAppMediaName)
+                {
+                this.fileUpload=true;
+            }
+        }
+        else if (this.template.querySelector('.channelSelect').value === "WhatsApp" && this.boolTextareaEnabled === false) {
+            this.Area = true;
+            if(!this.whatsAppMediaName)
+            {
+            this.fileUpload=true;
+        }
+        }
+        else if (this.template.querySelector('.channelSelect').value === "Voicemail" ) {
+            this.Area = true;
+            this.fileUpload=false;
+            this.whatsAppMediaName = '';
+        //     if(this.whatsAppMediaName === '')
+        //     {
+        //     this.fileUpload=true;
+        // }
+        }
+				this.getTemplateJS('');
+                 this.templateList = [];
+                this.templateList.push({value :'--None--' , key : '--None--'});
+    }
+    handleChannelChange2(event){
+       this.channelVal= event.target.value ; 
+       if (event.target.value === "WhatsApp" && this.whatsAppMediaName === '') {
+        this.fileUpload=true;
+       }
+        else{
+            this.fileUpload=false;
+            this.whatsAppMediaName='';
+        }
+       // this.whatsAppMediaName='';
+    
+    }
+    //ended by Himanshi Verma
+
+    renderedCallback(){//Added By Subrata
+        if(this.Area)
+            this.emojiDisabled = true;
+        else
+            this.emojiDisabled = false
+
+    }
+}
